@@ -1,0 +1,99 @@
+:root {
+  --cam: #E07B39; --cam-nhat: #FDF1E8; --cam-dam: #B35A17;
+  --xanh: #2F7A8C; --xanh-nhat: #E8F0F2; --xanh-dam: #1F5F6E;
+  --ink: #1F2D37; --muted: #5B6B73; --card: #F2F5F6; --vien: #D9E0E3; --do: #C62828;
+  --nen-top: #16212B;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: #fff; color: var(--ink);
+  font-family: "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; font-size: 15px; }
+
+.top { background: var(--nen-top); color: #fff; display: flex; align-items: center; justify-content: space-between;
+  gap: 12px; padding: 12px 22px; flex-wrap: wrap; }
+.brand h1 { font-size: 20px; margin: 0 14px 0 0; display: inline-block; letter-spacing: .5px; }
+.brand .sub { color: #AFC0C9; font-size: 13px; }
+.top-actions { display: flex; gap: 8px; }
+
+.tabs { display: flex; gap: 2px; padding: 8px 14px 0; background: #fff; border-bottom: 1px solid var(--vien);
+  overflow-x: auto; position: sticky; top: 0; z-index: 5; }
+.tabs button { border: 1px solid var(--vien); border-bottom: none; background: var(--card); color: var(--ink);
+  padding: 8px 14px; font-weight: 600; font-size: 14px; border-radius: 6px 6px 0 0; cursor: pointer; white-space: nowrap; }
+.tabs button.active { background: #fff; color: var(--cam-dam); box-shadow: inset 0 3px 0 var(--cam); }
+
+main { padding: 6px 18px 80px; }
+.tab { display: none; }
+.tab.active { display: block; }
+.mota { color: var(--muted); font-style: italic; margin: 8px 0 12px; }
+.body { display: flex; gap: 18px; align-items: flex-start; }
+.ctl { width: 270px; flex: 0 0 270px; }
+.view { flex: 1; min-width: 0; }
+
+fieldset { border: 1px solid #9aa7ad; border-radius: 6px; margin: 0 0 12px; padding: 8px 12px 10px; }
+legend { font-weight: 700; padding: 0 6px; font-size: 14px; }
+.btn { display: block; width: 100%; margin: 5px 0; padding: 7px 10px; font: inherit; font-size: 14px; color: var(--ink);
+  background: #fff; border: 1px solid #b9c3c8; border-radius: 5px; cursor: pointer; text-align: center; }
+.btn:hover { background: var(--card); }
+.btn-light { display: inline-block; width: auto; margin: 0; background: #fff; }
+input[type=range] { width: 100%; accent-color: var(--xanh); }
+select { width: 100%; padding: 5px; font: inherit; margin-top: 6px; }
+.radio, .check { display: block; margin: 4px 0; cursor: pointer; }
+.radio.cam { color: var(--cam-dam); font-weight: 700; } .radio.xanh { color: var(--xanh-dam); font-weight: 700; }
+.radio.xam { color: var(--muted); font-weight: 700; }
+.hang { display: flex; gap: 10px; } .hang .radio { display: inline-block; }
+.nho { font-size: 13px; color: var(--muted); margin-top: 4px; }
+.ghi { background: var(--xanh-nhat); border-radius: 6px; padding: 10px 12px; font-size: 14px; line-height: 1.45; white-space: pre-line; }
+.ghi.sai { background: #FDECEA; }
+canvas.se { display: block; margin: 8px auto 0; width: 150px; height: 150px; }
+
+.panels { display: flex; flex-wrap: wrap; gap: 14px; }
+.panels.grid3 .khung { width: calc((100% - 28px) / 3); }
+.panels.grid2 .khung { width: calc((100% - 14px) / 2); }
+.khung { width: 320px; }
+.khung .tieu { font-weight: 700; margin-bottom: 4px; font-size: 14.5px; }
+.khung canvas { display: block; width: 100%; background: var(--card); }
+.khung .cap { color: var(--muted); font-size: 13px; margin-top: 4px; white-space: pre-line; min-height: 2.6em; }
+.cam { color: var(--cam-dam); } .xanh { color: var(--xanh-dam); } .do { color: var(--do); } .xam { color: var(--muted); }
+
+/* tab 1 */
+.t1view { display: flex; gap: 26px; flex-wrap: wrap; align-items: flex-start; }
+.t1view .h { font-weight: 700; font-size: 16px; margin-bottom: 8px; }
+.luoi { display: grid; gap: 0; border: 1px solid var(--vien); width: max-content; }
+.luoi div { width: 58px; height: 58px; display: flex; align-items: center; justify-content: center;
+  font-weight: 700; font-size: 18px; border: 1px solid var(--vien); background: #EEF3F5; position: relative; }
+.luoi5 { grid-template-columns: repeat(5, 58px); }
+.boc { position: relative; width: max-content; --o: 58px; }
+.cua-so { position: absolute; left: calc(1px + var(--c) * var(--o)); top: calc(1px + var(--r) * var(--o));
+  width: calc(3 * var(--o)); height: calc(3 * var(--o)); border: 3px solid var(--do); border-radius: 3px;
+  pointer-events: none; transition: left .3s ease, top .3s ease; display: none; }
+.luoi3 { grid-template-columns: repeat(3, 58px); }
+.luoi3 div { width: 54px; height: 54px; }
+.luoi div.muoi { background: #0D3B66; color: #fff; }
+.luoi div.tieu { background: #CFD8DC; }
+.luoi div.khung-do { box-shadow: inset 0 0 0 3px var(--do); }
+.luoi div.trong { background: #fff; color: transparent; }
+.nen-cam div { background: var(--cam-nhat); } .nen-xanh div { background: var(--xanh-nhat); }
+.nen-cam div.hien-tai { box-shadow: inset 0 0 0 3px var(--cam); }
+.nen-xanh div.hien-tai { box-shadow: inset 0 0 0 3px var(--xanh); }
+.giua { min-width: 470px; }
+.day { display: flex; gap: 4px; margin: 6px 0 16px; }
+.day div { width: 46px; height: 46px; display: flex; align-items: center; justify-content: center; border: 1px solid var(--vien);
+  background: #EEF3F5; font-size: 16px; }
+.day.sx div { background: #fff; font-weight: 700; }
+.day.sx div.min { background: var(--xanh); color: #fff; } .day.sx div.max { background: var(--cam); color: #fff; }
+.nhan-mm { display: flex; justify-content: space-between; width: calc(9 * 50px - 4px); font-weight: 700; margin-top: -10px; }
+.ghi-lon { font-size: 21px; font-weight: 700; margin: 12px 0 6px; }
+.ket-luan { margin-top: 22px; font-size: 15px; line-height: 1.6; }
+
+.status { position: fixed; bottom: 0; left: 0; right: 0; background: var(--card); color: var(--muted); font-size: 12.5px;
+  padding: 4px 14px; border-top: 1px solid var(--vien); }
+
+@media (max-width: 900px) {
+  .body { flex-direction: column; }
+  .ctl { width: 100%; flex: none; }
+  .khung, .panels.grid3 .khung, .panels.grid2 .khung { width: 100%; }
+  .giua { min-width: 0; }
+  .luoi div { width: 46px; height: 46px; font-size: 15px; } .luoi5 { grid-template-columns: repeat(5, 46px); }
+  .boc { --o: 46px; }
+  .luoi3 { grid-template-columns: repeat(3, 46px); } .luoi3 div { width: 44px; height: 44px; }
+  .day div { width: 34px; height: 34px; font-size: 13px; } .nhan-mm { width: calc(9 * 38px - 4px); }
+}

@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Lọc cực đại & Lọc cực tiểu – Demo</title>
+  <meta name="description" content="Ứng dụng minh họa lọc cực đại (Maximum Filter) và lọc cực tiểu (Minimum Filter) – chạy trực tiếp trên trình duyệt.">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='30' cy='50' r='26' fill='%23E07B39'/><circle cx='70' cy='50' r='26' fill='%232F7A8C'/></svg>">
+  <link rel="stylesheet" href="style.css?v=1">
+</head>
+<body>
+<header class="top">
+  <div class="brand">
+    <h1>LỌC CỰC ĐẠI &nbsp;&amp;&nbsp; LỌC CỰC TIỂU</h1>
+    <span class="sub">Thuyết trình 1 · Đề tài 3 · Nhóm 3 · Xử lý ảnh và thị giác máy tính</span>
+  </div>
+  <div class="top-actions">
+    <label class="btn btn-light">Mở ảnh khác…<input type="file" id="moAnh" accept="image/*" hidden></label>
+    <button class="btn btn-light" id="anhMau">Dùng ảnh mẫu</button>
+  </div>
+</header>
+
+<nav class="tabs" id="tabs">
+  <button data-tab="t1" class="active">1. Cửa sổ trượt (5×5)</button>
+  <button data-tab="t2">2. Lọc cực đại / cực tiểu</button>
+  <button data-tab="t3">3. Khử nhiễu muối / tiêu</button>
+  <button data-tab="t4">4. Mở – đóng từng bước</button>
+  <button data-tab="t5">5. Tách biên</button>
+  <button data-tab="t6">6. Top-hat tách chữ</button>
+</nav>
+
+<main>
+  <!-- ===================== TAB 1 ===================== -->
+  <section class="tab active" id="t1">
+    <p class="mota">Ví dụ tính tay giống slide Phần 2: ảnh 5×5 có một điểm nhiễu muối (200) và một điểm nhiễu tiêu (0), cửa sổ 3×3 trượt qua 9 vị trí. Bấm “Tiếp” để xem từng bước.</p>
+    <div class="body">
+      <aside class="ctl">
+        <fieldset><legend>Điều khiển</legend>
+          <button class="btn" id="t1Tiep">Tiếp →</button>
+          <button class="btn" id="t1Lui">← Lùi</button>
+          <button class="btn" id="t1Chay">Tự chạy / Dừng</button>
+          <button class="btn" id="t1Lai">Làm lại</button>
+        </fieldset>
+        <fieldset><legend>Ma trận</legend>
+          <button class="btn" id="t1Slide">Ma trận trong slide</button>
+          <button class="btn" id="t1Ngau">Ma trận ngẫu nhiên</button>
+        </fieldset>
+        <fieldset><legend>Tốc độ tự chạy</legend>
+          <input type="range" id="t1Toc" min="300" max="2000" step="100" value="900">
+          <div class="nho"><span id="t1TocV">900</span> mili-giây mỗi bước</div>
+        </fieldset>
+        <div class="ghi" id="t1Ghi"></div>
+      </aside>
+      <div class="view t1view">
+        <div class="col">
+          <div class="h">Ảnh vào f (5×5)</div>
+          <div class="boc"><div class="luoi luoi5" id="t1In"></div><div class="cua-so" id="t1Cua"></div></div>
+        </div>
+        <div class="col giua" id="t1Giua"></div>
+        <div class="col">
+          <div class="h cam">Kết quả lọc cực đại</div>
+          <div class="luoi luoi3 nen-cam" id="t1Max"></div>
+          <div class="h xanh" style="margin-top:18px">Kết quả lọc cực tiểu</div>
+          <div class="luoi luoi3 nen-xanh" id="t1Min"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== TAB 2 ===================== -->
+  <section class="tab" id="t2">
+    <p class="mota">Áp dụng lọc cực đại / cực tiểu lên ảnh thật. Thử tăng kích thước và đổi hình dạng cửa sổ để thấy ảnh sáng lên / tối đi và vùng sáng nở ra / co lại như thế nào.</p>
+    <div class="body">
+      <aside class="ctl">
+        <fieldset><legend>Phép lọc</legend>
+          <label class="radio cam"><input type="radio" name="t2Kieu" value="max" checked> Lọc cực đại (max)</label>
+          <label class="radio xanh"><input type="radio" name="t2Kieu" value="min"> Lọc cực tiểu (min)</label>
+        </fieldset>
+        <fieldset><legend>Cửa sổ lọc (phần tử cấu trúc)</legend>
+          <div class="nho">kích thước: <b id="t2KV">5</b></div>
+          <input type="range" id="t2K" min="1" max="21" step="2" value="5">
+          <select id="t2Hinh"></select>
+          <canvas id="t2Se" class="se" width="150" height="150"></canvas>
+        </fieldset>
+        <label class="check"><input type="checkbox" id="t2Zoom"> Phóng to vùng giữa ảnh</label>
+        <div class="ghi" id="t2Ghi"></div>
+      </aside>
+      <div class="view panels" id="t2P"></div>
+    </div>
+  </section>
+
+  <!-- ===================== TAB 3 ===================== -->
+  <section class="tab" id="t3">
+    <p class="mota">Giống slide “Ứng dụng 1: khử nhiễu xung”. Chọn loại nhiễu, mật độ nhiễu và bộ lọc để xem bộ lọc nào xử lý được loại nhiễu nào.</p>
+    <div class="body">
+      <aside class="ctl">
+        <fieldset><legend>Nhiễu</legend>
+          <label class="radio"><input type="radio" name="t3Loai" value="Muối" checked> Nhiễu muối</label>
+          <label class="radio"><input type="radio" name="t3Loai" value="Tiêu"> Nhiễu tiêu</label>
+          <label class="radio"><input type="radio" name="t3Loai" value="Muối tiêu"> Nhiễu muối tiêu</label>
+          <div class="nho">mật độ nhiễu: <b id="t3MV">5</b> %</div>
+          <input type="range" id="t3M" min="1" max="30" value="5">
+          <button class="btn" id="t3Moi">Tạo nhiễu ngẫu nhiên mới</button>
+        </fieldset>
+        <fieldset><legend>Bộ lọc</legend>
+          <label class="radio xanh"><input type="radio" name="t3Loc" value="min" checked> Lọc cực tiểu (min)</label>
+          <label class="radio cam"><input type="radio" name="t3Loc" value="max"> Lọc cực đại (max)</label>
+          <label class="radio xam"><input type="radio" name="t3Loc" value="med"> Lọc trung vị (so sánh)</label>
+          <div class="hang">
+            <label class="radio"><input type="radio" name="t3K" value="3" checked> 3×3</label>
+            <label class="radio"><input type="radio" name="t3K" value="5"> 5×5</label>
+            <label class="radio"><input type="radio" name="t3K" value="7"> 7×7</label>
+          </div>
+        </fieldset>
+        <label class="check"><input type="checkbox" id="t3Zoom" checked> Phóng to vùng giữa ảnh</label>
+        <div class="ghi" id="t3Ghi"></div>
+      </aside>
+      <div class="view panels" id="t3P"></div>
+    </div>
+  </section>
+
+  <!-- ===================== TAB 4 ===================== -->
+  <section class="tab" id="t4">
+    <p class="mota">Quá trình làm sạch ảnh nhiễu muối tiêu bằng phép mở rồi phép đóng (giống slide “Kết hợp hai phép”). Bấm “Bước tiếp” để xem ảnh sạch dần qua từng bước.</p>
+    <div class="body">
+      <aside class="ctl">
+        <fieldset><legend>Ảnh nhiễu muối tiêu</legend>
+          <div class="nho">mật độ nhiễu: <b id="t4MV">5</b> %</div>
+          <input type="range" id="t4M" min="1" max="20" value="5">
+          <button class="btn" id="t4Moi">Tạo nhiễu ngẫu nhiên mới</button>
+        </fieldset>
+        <fieldset><legend>Các bước</legend>
+          <button class="btn" id="t4Tiep">Bước tiếp →</button>
+          <button class="btn" id="t4Het">Chạy hết</button>
+          <button class="btn" id="t4Lai">Làm lại</button>
+        </fieldset>
+        <label class="check"><input type="checkbox" id="t4Zoom" checked> Phóng to vùng giữa ảnh</label>
+        <div class="ghi" id="t4Ghi"></div>
+      </aside>
+      <div class="view panels grid3" id="t4P"></div>
+    </div>
+  </section>
+
+  <!-- ===================== TAB 5 ===================== -->
+  <section class="tab" id="t5">
+    <p class="mota">Tách biên bằng gradient hình thái: lấy ảnh lọc cực đại trừ ảnh lọc cực tiểu. Ở vùng đồng nhất max ≈ min nên kết quả gần 0; ở biên chênh lệch lớn nên sáng lên.</p>
+    <div class="body">
+      <aside class="ctl">
+        <fieldset><legend>Cửa sổ</legend>
+          <div class="nho">kích thước: <b id="t5KV">3</b></div>
+          <input type="range" id="t5K" min="3" max="11" step="2" value="3">
+          <select id="t5Hinh"></select>
+        </fieldset>
+        <fieldset><legend>Ngưỡng điểm biên</legend>
+          <div class="nho">max − min lớn hơn: <b id="t5NV">40</b></div>
+          <input type="range" id="t5N" min="10" max="120" value="40">
+        </fieldset>
+        <label class="check"><input type="checkbox" id="t5Zoom"> Phóng to vùng giữa ảnh</label>
+        <div class="ghi" id="t5Ghi"></div>
+      </aside>
+      <div class="view panels grid3" id="t5P"></div>
+    </div>
+  </section>
+
+  <!-- ===================== TAB 6 ===================== -->
+  <section class="tab" id="t6">
+    <p class="mota">Top-hat = ảnh gốc − phép mở. Phép mở với cửa sổ lớn hơn nét chữ sẽ “ước lượng” nền; trừ nền đi thì chữ nổi lên đều, nhị phân hóa không còn bị dính mảng nền (tiền xử lý OCR).</p>
+    <div class="body">
+      <aside class="ctl">
+        <fieldset><legend>Ảnh chữ</legend>
+          <div class="nho">độ không đều của nền: <b id="t6NV">130</b></div>
+          <input type="range" id="t6N" min="0" max="170" value="130">
+        </fieldset>
+        <fieldset><legend>Phần tử cấu trúc của phép mở</legend>
+          <div class="nho">kích thước (phải lớn hơn nét chữ): <b id="t6KV">35</b></div>
+          <input type="range" id="t6K" min="5" max="61" step="2" value="35">
+        </fieldset>
+        <div class="ghi" id="t6Ghi"></div>
+      </aside>
+      <div class="view panels grid2" id="t6P"></div>
+    </div>
+  </section>
+</main>
+
+<footer class="status" id="status">Đang tải ảnh mẫu…</footer>
+<script src="app.js?v=1"></script>
+</body>
+</html>
