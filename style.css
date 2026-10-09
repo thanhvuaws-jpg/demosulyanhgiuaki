@@ -84,6 +84,80 @@ canvas.se { display: block; margin: 8px auto 0; width: 150px; height: 150px; }
 .ghi-lon { font-size: 21px; font-weight: 700; margin: 12px 0 6px; }
 .ket-luan { margin-top: 22px; font-size: 15px; line-height: 1.6; }
 
+/* khối giải thích dưới mỗi tab */
+.giai-thich { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-top: 24px; }
+@media (max-width: 1100px) { .giai-thich { grid-template-columns: minmax(0, 1fr); } }
+.gt { border: 1px solid var(--vien); border-radius: 8px; padding: 12px 16px 14px; background: #fff; line-height: 1.5; font-size: 14.5px; min-width: 0; }
+.gt.rong { grid-column: 1 / -1; }
+.gt h3 { margin: 0 0 8px; font-size: 15.5px; display: flex; align-items: center; gap: 8px; }
+.gt h3::before { content: ""; width: 4px; height: 17px; border-radius: 2px; background: var(--cam); flex: none; }
+.gt.xanh h3::before { background: var(--xanh); }
+.gt p { margin: 6px 0; }
+.goi-y { color: var(--muted); font-size: 13.5px; }
+.nhan-xet { background: var(--xanh-nhat); border-radius: 6px; padding: 8px 12px; }
+ol.buoc { list-style: none; counter-reset: b; padding: 0; margin: 6px 0; }
+ol.buoc li { counter-increment: b; position: relative; padding: 5px 8px 5px 36px; border-radius: 6px; margin: 2px 0; }
+ol.buoc li::before { content: counter(b); position: absolute; left: 6px; top: 6px; width: 21px; height: 21px; border-radius: 50%;
+  background: var(--card); border: 1px solid var(--vien); font-size: 12px; font-weight: 700; display: flex; align-items: center; justify-content: center; }
+ol.buoc li.hien { background: var(--cam-nhat); }
+ol.buoc li.hien::before { background: var(--cam); border-color: var(--cam); color: #fff; }
+ul.cham { padding-left: 20px; margin: 6px 0; } ul.cham li { margin: 4px 0; }
+.cong-thuc { font-family: Cambria, "Times New Roman", serif; font-size: 16.5px; background: var(--card); padding: 7px 12px; border-radius: 6px;
+  margin: 6px 0; overflow-x: auto; white-space: nowrap; }
+.chip-day { display: inline-flex; flex-wrap: wrap; gap: 3px; vertical-align: middle; }
+.chip-day span { min-width: 30px; padding: 1px 4px; text-align: center; border: 1px solid var(--vien); border-radius: 4px; font-size: 13px;
+  background: #fff; font-variant-numeric: tabular-nums; }
+.chip-day span.max, .chip-day span.chon-max { background: var(--cam); border-color: var(--cam); color: #fff; font-weight: 700; }
+.chip-day span.min, .chip-day span.chon-min { background: var(--xanh); border-color: var(--xanh); color: #fff; font-weight: 700; }
+.chip-day span.chon-med { background: var(--ink); border-color: var(--ink); color: #fff; font-weight: 700; }
+.chip-day span.muoi { background: #0D3B66; border-color: #0D3B66; color: #fff; font-weight: 700; }
+.chip-day span.tieu { background: #CFD8DC; font-weight: 700; }
+.cuon { overflow-x: auto; }
+.bang { border-collapse: collapse; font-size: 13.5px; font-variant-numeric: tabular-nums; margin: 6px 0; }
+.bang th, .bang td { border: 1px solid var(--vien); padding: 4px 8px; text-align: center; }
+.bang th { background: var(--card); font-weight: 700; }
+.bang .trai { text-align: left; }
+.bang td.ten { text-align: left; white-space: nowrap; font-weight: 600; }
+.bang tr.hien td { background: var(--cam-nhat); }
+.bang tr.bam { cursor: pointer; } .bang tr.bam:hover td { background: var(--xanh-nhat); }
+.bang tr.chua td { color: var(--muted); }
+.bang1d td { min-width: 34px; padding: 4px 3px; }
+.bang1d td.nx { min-width: 220px; font-size: 13px; color: var(--ink); background: #fff !important; }
+.bang1d td.muoi { background: #0D3B66; color: #fff; font-weight: 700; }
+.bang1d td.tieu { background: #CFD8DC; font-weight: 700; }
+.bang1d td.doi { box-shadow: inset 0 0 0 3px var(--cam); font-weight: 700; }
+.bang1d td.bien { background: var(--cam-nhat); color: var(--cam-dam); font-weight: 700; }
+.bang1d td.khong { color: var(--muted); }
+/* cửa sổ 3×3 ở tab 1 */
+.cs-hang { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+.cs-hang .goi-y { flex: 1; min-width: 160px; margin: 0; }
+.cs3 { display: grid; grid-template-columns: repeat(3, 62px); border: 3px solid var(--do); border-radius: 3px; width: max-content; }
+.cs3 div { height: 54px; border: 1px solid var(--vien); background: #EEF3F5; display: flex; flex-direction: column; align-items: center;
+  justify-content: center; font-weight: 700; font-size: 17px; line-height: 1.1; }
+.cs3 div small { font-weight: 400; font-size: 10.5px; color: var(--muted); }
+.cs3 div.tam { background: #FFF1C9; }
+.cs3 div.muoi { background: #0D3B66; color: #fff; } .cs3 div.muoi small { color: #C9D6E3; }
+.cs3 div.tieu { background: #CFD8DC; }
+/* soi cửa sổ (tab 2, 3) */
+.soi-hang { display: flex; gap: 18px; align-items: flex-start; flex-wrap: wrap; }
+.soi-luoi { display: grid; gap: 1px; background: var(--vien); border: 1px solid var(--vien); width: max-content; max-width: 100%; overflow: auto; flex: none; }
+.soi-luoi div { display: flex; align-items: center; justify-content: center; font-size: 11px; font-variant-numeric: tabular-nums; cursor: default; }
+.soi-luoi div.ngoai { opacity: .16; }
+.soi-luoi div.tam { box-shadow: inset 0 0 0 2px var(--do); }
+.soi-luoi div.chon-max { box-shadow: inset 0 0 0 3px var(--cam); font-weight: 700; }
+.soi-luoi div.chon-min { box-shadow: inset 0 0 0 3px var(--xanh); font-weight: 700; }
+.soi-luoi div.chon-med { box-shadow: inset 0 0 0 3px #F2C14E; font-weight: 700; }
+.soi-luoi div.tam.chon-max, .soi-luoi div.tam.chon-min, .soi-luoi div.tam.chon-med { outline: 2px solid var(--do); outline-offset: -5px; }
+.soi-chu { flex: 1; min-width: 240px; }
+/* biểu đồ lát cắt (tab 6) */
+.chu-giai { display: flex; gap: 6px 16px; flex-wrap: wrap; font-size: 13px; margin: 6px 0; }
+.chu-giai i, .tip i { display: inline-block; width: 16px; height: 3px; border-radius: 2px; vertical-align: middle; margin-right: 6px; }
+.chu-giai i.manh { height: 1px; }
+.bieu-do-boc { position: relative; }
+canvas.bieu-do { display: block; width: 100%; height: 250px; }
+.tip { position: absolute; display: none; pointer-events: none; background: #fff; border: 1px solid var(--vien); border-radius: 6px;
+  padding: 6px 10px; font-size: 12.5px; line-height: 1.5; box-shadow: 0 2px 8px rgba(0,0,0,.08); white-space: nowrap; }
+
 .status { position: fixed; bottom: 0; left: 0; right: 0; background: var(--card); color: var(--muted); font-size: 12.5px;
   padding: 4px 14px; border-top: 1px solid var(--vien); }
 

@@ -17,6 +17,8 @@ Không cần cài đặt gì: mở link bằng trình duyệt (máy tính hay đ
 | 5. Tách biên | Gradient hình thái = max − min, có ngưỡng để lấy điểm biên. |
 | 6. Top-hat tách chữ | Ảnh gốc − phép mở để bỏ nền sáng không đều trước khi nhị phân hóa (Otsu). |
 
+Dưới mỗi tab có **phần giải thích**: các bước thuật toán đang chạy, cửa sổ lọc là gì và kích thước / hình dạng cửa sổ ảnh hưởng thế nào, kèm ví dụ tính tay. Ở tab 2 và 3 có thể **bấm vào ảnh để soi cửa sổ** tại điểm đó (xem các giá trị trong cửa sổ và giá trị được chọn); tab 6 có biểu đồ lát cắt một hàng ảnh.
+
 Nút **“Mở ảnh khác…”** ở góc trên cho phép thử với ảnh của bạn (ảnh lớn được thu nhỏ còn cạnh dài nhất 900 điểm ảnh).
 
 ## Ghi chú kỹ thuật

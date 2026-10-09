@@ -233,14 +233,89 @@ function veKhung(k, a, cap = "", vung = null, tieuDe = null, mau = null) {
   let [sy, sh, sx, sw] = vung || [0, a.h, 0, a.w];
   const s = Math.min(cw / sw, ch / sh), dw = sw * s, dh = sh * s;
   ctx.imageSmoothingEnabled = s < 1.4;
-  ctx.drawImage(canvasCua(a), sx, sy, sw, sh, (cw - dw) / 2, (ch - dh) / 2, dw, dh);
+  const ox = (cw - dw) / 2, oy = (ch - dh) / 2;
+  ctx.drawImage(canvasCua(a), sx, sy, sw, sh, ox, oy, dw, dh);
+  k.tf = { sx, sy, s, ox, oy };
+  if (k.diem) {                     // khung đỏ: vị trí cửa sổ đang soi
+    const { x, y, r } = k.diem;
+    if (x >= sx && x < sx + sw && y >= sy && y < sy + sh) {
+      const cx = ox + (x + 0.5 - sx) * s, cy = oy + (y + 0.5 - sy) * s, d = Math.max((2 * r + 1) * s, 10);
+      for (const [mau, net] of [["#fff", 4], [MAU.do, 2]]) {
+        ctx.strokeStyle = mau; ctx.lineWidth = net; ctx.strokeRect(cx - d / 2, cy - d / 2, d, d);
+        ctx.beginPath();
+        ctx.moveTo(cx - d / 2 - 9, cy); ctx.lineTo(cx - d / 2 - 2, cy); ctx.moveTo(cx + d / 2 + 2, cy); ctx.lineTo(cx + d / 2 + 9, cy);
+        ctx.moveTo(cx, cy - d / 2 - 9); ctx.lineTo(cx, cy - d / 2 - 2); ctx.moveTo(cx, cy + d / 2 + 2); ctx.lineTo(cx, cy + d / 2 + 9);
+        ctx.stroke();
+      }
+    }
+  }
+  if (k.hang != null) {             // vạch đánh dấu hàng ảnh được cắt ra vẽ biểu đồ
+    const yy = oy + (k.hang + 0.5 - sy) * s;
+    ctx.strokeStyle = MAU.do; ctx.lineWidth = 1.5; ctx.setLineDash([6, 4]);
+    ctx.beginPath(); ctx.moveTo(ox, yy); ctx.lineTo(ox + dw, yy); ctx.stroke(); ctx.setLineDash([]);
+  }
   k.cap.textContent = cap;
+}
+
+// Bấm lên ảnh trong khung -> tọa độ điểm ảnh
+function chonDiem(k, cb) {
+  k.cv.style.cursor = "crosshair";
+  k.cv.addEventListener("click", (e) => {
+    if (!k.anh || !k.tf) return;
+    const b = k.cv.getBoundingClientRect(), t = k.tf;
+    const x = Math.floor((e.clientX - b.left - t.ox) / t.s + t.sx), y = Math.floor((e.clientY - b.top - t.oy) / t.s + t.sy);
+    if (x >= 0 && y >= 0 && x < k.anh.w && y < k.anh.h) cb(x, y);
+  });
 }
 const veLai = (ds) => ds.forEach((k) => k.anh !== undefined && veKhung(k, k.anh, k.chu, k.vung));
 
 function ghiChu(id, chu, sai = false) { const el = $(id); el.textContent = chu; el.classList.toggle("sai", sai); }
 function chonHinh(sel) { sel.innerHTML = HINH_DANG.map((h) => `<option>${h}</option>`).join(""); }
 const radio = (ten) => document.querySelector(`input[name="${ten}"]:checked`).value;
+
+// ============================== KHỐI GIẢI THÍCH ==============================
+const the = (tieu, noiDung, lop = "") => `<div class="gt ${lop}"><h3>${tieu}</h3>${noiDung}</div>`;
+const dsBuoc = (ds, hien = -1) => `<ol class="buoc">${ds.map((t, i) => `<li class="${i === hien ? "hien" : ""}">${t}</li>`).join("")}</ol>`;
+const dsCham = (ds) => `<ul class="cham">${ds.map((t) => `<li>${t}</li>`).join("")}</ul>`;
+const chip = (vs, lop = () => "") => `<span class="chip-day">${vs.map((v, i) => `<span class="${lop(v, i)}">${v}</span>`).join("")}</span>`;
+const nghin = (n) => Math.round(n).toLocaleString("vi-VN");
+const kep = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+const demO = (m) => m.reduce((s, hang) => s + hang.filter(Boolean).length, 0);
+
+// Soi cửa sổ tại (x, y): vẽ các ô của cửa sổ, sắp xếp và chỉ ra giá trị được chọn
+function soiCuaSo(el, a, x, y, mask, kieu, them = "") {
+  const k = mask.length, r = (k - 1) >> 1, o = k <= 9 ? 30 : k <= 15 ? 19 : 12, coSo = k <= 11;
+  const lay = (i, j) => a.d[(y + i - r) * a.w + (x + j - r)];
+  const ds = [];
+  for (let i = 0; i < k; i++) for (let j = 0; j < k; j++) if (mask[i][j]) ds.push(lay(i, j));
+  const sx = ds.slice().sort((p, q) => p - q), N = sx.length, viTri = kieu === "max" ? N - 1 : kieu === "min" ? 0 : N >> 1, kq = sx[viTri];
+  let daChon = false, o9 = "";
+  for (let i = 0; i < k; i++) for (let j = 0; j < k; j++) {
+    const v = lay(i, j), on = mask[i][j];
+    let cls = on ? "" : "ngoai";
+    if (i === r && j === r) cls += " tam";
+    if (on && !daChon && v === kq) { cls += " chon-" + kieu; daChon = true; }
+    o9 += `<div class="${cls}" style="background:rgb(${v},${v},${v});color:${v > 140 ? "#1F2D37" : "#fff"}" title="điểm (${x + j - r}, ${y + i - r}) = ${v}">${coSo && on ? v : ""}</div>`;
+  }
+  const lopChip = (v, i) => (i === viTri ? "chon-" + kieu : "");
+  let day;
+  if (N <= 25) day = chip(sx, lopChip);
+  else {
+    const g = N >> 1;
+    day = chip([...sx.slice(0, 3), "…", sx[g], "…", ...sx.slice(-3)],
+      (v, i) => (kieu === "min" && i === 0) || (kieu === "max" && i === 8) || (kieu === "med" && i === 4) ? "chon-" + kieu : "");
+  }
+  const ten = { max: "lớn nhất (phần tử cuối)", min: "nhỏ nhất (phần tử đầu)", med: `ở giữa (phần tử thứ ${viTri + 1}/${N})` }[kieu];
+  el.innerHTML = `<div class="soi-hang">
+    <div class="soi-luoi" style="grid-template-columns:repeat(${k},${o}px);grid-auto-rows:${o}px">${o9}</div>
+    <div class="soi-chu">
+      <p>Tâm cửa sổ tại điểm <b>(x = ${x}, y = ${y})</b>, giá trị hiện tại <b>${lay(r, r)}</b>${coSo ? "" : " (cửa sổ lớn nên chỉ tô màu, rê chuột lên ô để xem số)"}.</p>
+      <p>Cửa sổ có <b>N = ${N}</b> điểm${N < k * k ? " – ô mờ không thuộc cửa sổ nên không được tính" : ""}. Sắp xếp tăng dần:</p>
+      <p>${day}</p>
+      <p>Lấy giá trị ${ten}: <b>${kq}</b> → điểm (${x}, ${y}) của ảnh mới nhận giá trị <b>${kq}</b>.${them}</p>
+    </div></div>`;
+  return kq;
+}
 
 // ============================== TRẠNG THÁI CHUNG ==============================
 let IMG = null, TEN_ANH = "anh_mau.jpg";
@@ -253,7 +328,71 @@ TABS.t1 = (() => {
   const VI_TRI = []; for (let r = 0; r < 3; r++) for (let c = 0; c < 3; c++) VI_TRI.push([r, c]);
   const cua = (r, c) => { const v = []; for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) v.push(f[r + i][c + j]); return v; };
 
-  function ve() {
+  $("#t1GT").innerHTML = the("Đang làm gì ở bước này?", `<div id="t1B"></div>`)
+    + the("Cửa sổ lọc 3×3 là gì?", `<div id="t1CS"></div>`, "xanh")
+    + the("Bảng tính đủ 9 vị trí", `<p class="goi-y">Bấm vào một hàng để nhảy tới vị trí đó.</p><div id="t1Bang" class="cuon"></div>`, "rong");
+  const laMuoi = (v) => v >= 200, laTieu = (v) => v === 0;
+  const lopNhieu = (v) => (laMuoi(v) ? "muoi" : laTieu(v) ? "tieu" : "");
+  const BUOC_CHUNG = [
+    "Đặt <b>tâm</b> cửa sổ 3×3 lên điểm đang xét – bắt đầu từ góc trên trái, ở ô đầu tiên có đủ 8 điểm xung quanh.",
+    "Lấy ra <b>9 giá trị</b> nằm trong cửa sổ.",
+    "<b>Sắp xếp</b> 9 giá trị theo thứ tự tăng dần.",
+    "Lọc cực đại lấy phần tử <b>cuối</b> (lớn nhất), lọc cực tiểu lấy phần tử <b>đầu</b> (nhỏ nhất).",
+    "<b>Ghi</b> kết quả vào ô tương ứng của ảnh ra, rồi <b>trượt</b> cửa sổ sang phải 1 ô (hết hàng thì xuống hàng dưới, về đầu hàng) và lặp lại.",
+  ];
+  function nhanXet(w9, mx, mn, ngan = false) {
+    const c200 = w9.some(laMuoi), c0 = w9.some(laTieu);
+    if (ngan) return c200 && c0 ? "có cả 200 và 0: cả hai kết quả đều là nhiễu" : c200 ? "max = 200 (nhiễu lan), min xóa được 200"
+      : c0 ? "min = 0 (nhiễu lan), max xóa được 0" : `vùng phẳng, max − min = ${mx - mn}`;
+    if (c200 && c0) return "Cửa sổ chứa <b>cả</b> điểm muối (200) lẫn điểm tiêu (0): lọc cực đại bị 200 kéo lên, lọc cực tiểu bị 0 kéo xuống – cả hai kết quả đều là nhiễu.";
+    if (c200) return "Cửa sổ chứa điểm muối 200: lọc cực đại chọn đúng 200 → nhiễu <b>lan</b> sang ô này; lọc cực tiểu bỏ qua 200 → nhiễu <b>bị xóa</b>.";
+    if (c0) return "Cửa sổ chứa điểm tiêu 0: lọc cực tiểu chọn 0 → nhiễu <b>lan</b> sang ô này; lọc cực đại bỏ qua 0 → nhiễu <b>bị xóa</b>.";
+    return `Cửa sổ không có điểm nhiễu: max − min = ${mx} − ${mn} = ${mx - mn}, rất nhỏ vì đây là vùng phẳng – hai phép lọc cho kết quả gần như nhau.`;
+  }
+  function veGiaiThich() {
+    // 1) diễn giải bước hiện tại
+    if (!buoc) {
+      $("#t1B").innerHTML = `<p>Ở <b>mỗi</b> vị trí, thuật toán lặp lại đúng 5 việc:</p>${dsBuoc(BUOC_CHUNG)}<p class="goi-y">Bấm “Tiếp →” để chạy vị trí 1.</p>`;
+    } else {
+      const [r, c] = VI_TRI[buoc - 1], w9 = cua(r, c), s9 = w9.slice().sort((a, b) => a - b), mx = s9[8], mn = s9[0];
+      const ke = buoc === 9 ? "Đây là vị trí cuối: cửa sổ đã đi hết ảnh, ảnh ra 3×3 hoàn tất."
+        : c < 2 ? `Tiếp theo: trượt sang phải 1 ô → vị trí ${buoc + 1}.` : `Tiếp theo: hết hàng → xuống hàng dưới, về đầu hàng → vị trí ${buoc + 1}.`;
+      $("#t1B").innerHTML = `<p><b>Vị trí ${buoc}/9</b></p>` + dsBuoc([
+        `Đặt tâm cửa sổ tại ô <b>hàng ${r + 2}, cột ${c + 2}</b> của ảnh vào (giá trị ${f[r + 1][c + 1]}). Cửa sổ phủ hàng ${r + 1}–${r + 3}, cột ${c + 1}–${c + 3}.`,
+        `Lấy 9 giá trị: ${chip(w9, lopNhieu)}`,
+        `Sắp xếp tăng dần: ${chip(s9, (v, i) => (i === 0 ? "min" : i === 8 ? "max" : ""))}`,
+        `Lọc cực đại lấy <b>${mx}</b> (lớn nhất), lọc cực tiểu lấy <b>${mn}</b> (nhỏ nhất).`,
+        `Ghi ${mx} vào ô (hàng ${r + 1}, cột ${c + 1}) của ảnh lọc cực đại, ghi ${mn} vào cùng ô đó của ảnh lọc cực tiểu. ${ke}`,
+      ]) + `<p class="nhan-xet"><b>Nhận xét:</b> ${nhanXet(w9, mx, mn)}</p>`;
+    }
+    // 2) cửa sổ 3×3 hiện tại, kèm độ lệch (s, t) so với tâm
+    const w9 = buoc ? cua(...VI_TRI[buoc - 1]) : null, lech = ["−1", "0", "+1"];
+    let o = "";
+    for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) {
+      const v = w9 ? w9[i * 3 + j] : "·";
+      o += `<div class="${i === 1 && j === 1 ? "tam" : ""} ${w9 ? lopNhieu(v) : ""}"><small>(${lech[i]}, ${lech[j]})</small>${v}</div>`;
+    }
+    $("#t1CS").innerHTML = `<div class="cs-hang"><div class="cs3">${o}</div>
+      <p class="goi-y">Số nhỏ trong ngoặc là độ lệch (s, t) của ô so với tâm: s theo hàng, t theo cột. Ô vàng là tâm.</p></div>` + dsCham([
+      "Cửa sổ (còn gọi là mặt nạ hay phần tử cấu trúc) là vùng 3×3 điểm quanh điểm đang xét; ô giữa là <b>tâm</b> – điểm sẽ nhận giá trị mới.",
+      `Công thức (x là hàng, y là cột):<div class="cong-thuc">g(x, y) = max { f(x + s, y + t) : s, t ∈ {−1, 0, 1} }</div>Lọc cực tiểu chỉ thay max bằng min.`,
+      "Cửa sổ trượt lần lượt từng ô: trái → phải, trên → xuống.",
+      "Bỏ qua biên: tâm chỉ đặt ở ô có đủ 8 điểm xung quanh, nên có (5 − 3 + 1) × (5 − 3 + 1) = 9 vị trí → ảnh ra 3×3. Muốn ảnh ra vẫn 5×5 thì phải đệm thêm viền (lặp lại điểm biên).",
+      "Kết quả ghi vào một ảnh <b>mới</b>; ảnh vào f giữ nguyên, nếu không các vị trí sau sẽ dùng giá trị đã bị sửa.",
+    ]);
+    // 3) bảng 9 vị trí
+    let bang = `<table class="bang"><tr><th>Vị trí</th><th>Tâm (hàng, cột)</th><th>9 giá trị trong cửa sổ</th><th>Lọc cực đại</th><th>Lọc cực tiểu</th><th>Nhận xét</th></tr>`;
+    VI_TRI.forEach(([r, c], k) => {
+      const ws = cua(r, c), mx = Math.max(...ws), mn = Math.min(...ws), da = k < buoc;
+      bang += `<tr class="bam ${k === buoc - 1 ? "hien" : ""} ${da ? "" : "chua"}" data-b="${k + 1}"><td>${k + 1}</td><td>(${r + 2}, ${c + 2})</td><td>${chip(ws, lopNhieu)}</td>`
+        + `<td><b>${da ? mx : "?"}</b></td><td><b>${da ? mn : "?"}</b></td><td class="trai">${da ? nhanXet(ws, mx, mn, true) : "chưa tính"}</td></tr>`;
+    });
+    $("#t1Bang").innerHTML = bang + "</table>";
+  }
+  $("#t1Bang").addEventListener("click", (e) => { const tr = e.target.closest("tr[data-b]"); if (tr) { dung(); buoc = +tr.dataset.b; ve(); } });
+  function ve() { veChinh(); veGiaiThich(); }
+
+  function veChinh() {
     let hl = null; if (buoc) hl = VI_TRI[buoc - 1];
     $("#t1In").innerHTML = f.map((row) => row.map((v) => `<div class="${v >= 200 ? "muoi" : v === 0 ? "tieu" : ""}">${v}</div>`).join("")).join("");
     const cs = $("#t1Cua");
@@ -316,11 +455,51 @@ TABS.t2 = (() => {
       c.fillStyle = on ? (laMax ? "#E07B39" : "#2F7A8C") : "#F2F5F6"; c.fillRect(j * o + 0.5, i * o + 0.5, o - 1, o - 1);
     }
   }
+  $("#t2GT").innerHTML = the("Soi cửa sổ tại một điểm", `<p class="goi-y">Khung đỏ trên ảnh là cửa sổ đang soi. Bấm vào một điểm bất kỳ trên ảnh gốc hoặc ảnh sau lọc để soi điểm khác.</p><div id="t2Soi"></div>`, "rong")
+    + the("Cửa sổ đang chọn", `<div id="t2CS"></div>`, "xanh") + the("Thuật toán chạy thế nào?", `<div id="t2TT"></div>`);
+  const MO_TA_HINH = {
+    "Vuông": (k) => `Gồm <b>tất cả</b> ${k}×${k} ô. Vùng sáng nở ra (max) hoặc co lại (min) đều theo mọi hướng; góc của vật thường bị vuông hóa.`,
+    "Chữ thập": (k) => `Chỉ gồm <b>hàng giữa và cột giữa</b> (${2 * k - 1} ô). Chỉ lan theo 4 hướng ngang – dọc nên đường chéo và các góc ít bị biến dạng hơn.`,
+    "Đĩa tròn": (k) => `Gồm các ô cách tâm không quá r = ${(k - 1) >> 1} điểm ảnh. Lan đều mọi hướng như một hình tròn nên kết quả tự nhiên nhất – hay dùng nhất trong thực tế.`,
+    "Đoạn ngang": (k) => `Gồm ${k} ô trên <b>một hàng</b>. Chỉ tác động theo chiều ngang: lọc cực tiểu xóa các nét sáng <b>đứng</b> mảnh hơn ${k} điểm ảnh nhưng giữ nét nằm ngang; lọc cực đại lấp các khe tối đứng hẹp hơn ${k} điểm ảnh.`,
+    "Đoạn dọc": (k) => `Gồm ${k} ô trên <b>một cột</b>. Chỉ tác động theo chiều dọc: lọc cực tiểu xóa các nét sáng <b>nằm ngang</b> mảnh hơn ${k} điểm ảnh nhưng giữ nét đứng; lọc cực đại lấp các khe tối nằm ngang hẹp hơn ${k} điểm ảnh.`,
+  };
+  let diem = null;
+  const tuDong = new WeakMap();
+  function diemNoiBat(a) {          // điểm có độ tương phản cục bộ lớn nhất ở vùng giữa: soi ở đó thấy rõ max ≠ min
+    if (tuDong.has(a)) return tuDong.get(a);
+    const [y0, h, x0, w] = vungGiua(a), d = a.d;
+    let tot = -1, kq = [x0 + (w >> 1), y0 + (h >> 1)];
+    for (let y = y0 + 12; y < y0 + h - 12; y += 2) for (let x = x0 + 12; x < x0 + w - 12; x += 2) {
+      const i = y * a.w + x, g = Math.abs(d[i + 1] - d[i - 1]) + Math.abs(d[i + a.w] - d[i - a.w]);
+      if (g > tot) { tot = g; kq = [x, y]; }
+    }
+    tuDong.set(a, kq); return kq;
+  }
   function capNhat() {
     const k = +$("#t2K").value, hinh = $("#t2Hinh").value, laMax = radio("t2Kieu") === "max";
     $("#t2KV").textContent = k; veSe(hinh, k, laMax);
     const kq = laMax ? locCucDai(IMG, hinh, k) : locCucTieu(IMG, hinh, k);
     const vung = $("#t2Zoom").checked ? vungGiua(IMG) : null, m0 = trungBinh(IMG), m1 = trungBinh(kq);
+    const r = (k - 1) >> 1, d0 = diem || diemNoiBat(IMG), x = kep(d0[0], r, IMG.w - 1 - r), y = kep(d0[1], r, IMG.h - 1 - r);
+    k1.diem = k2.diem = { x, y, r };
+    const m = matNa(hinh, k), N = demO(m), W = IMG.w, H = IMG.h;
+    soiCuaSo($("#t2Soi"), IMG, x, y, m, laMax ? "max" : "min", ` Kiểm tra: ảnh sau lọc tại điểm này đúng bằng <b>${kq.d[y * W + x]}</b>.`);
+    $("#t2CS").innerHTML = `<p><b>${hinh} ${kichThuocChu(hinh, k)}</b> – có N = ${N} điểm (xem hình nhỏ ở khung “Cửa sổ lọc”: ô màu được tính, ô trắng bỏ qua).</p>` + dsCham([
+      MO_TA_HINH[hinh](k),
+      k === 1 ? "Cửa sổ 1×1 chỉ có chính điểm đó nên ảnh không đổi."
+        : laMax ? `Kích thước ${k}: vùng sáng lấn ra khoảng r = ${r} điểm ảnh mỗi phía; chi tiết <b>tối</b> nhỏ hơn cửa sổ (bề rộng dưới ${k} điểm ảnh) bị lấp mất.`
+          : `Kích thước ${k}: vùng sáng co lại khoảng r = ${r} điểm ảnh mỗi phía; chi tiết <b>sáng</b> nhỏ hơn cửa sổ (bề rộng dưới ${k} điểm ảnh) bị xóa mất.`,
+      "Cửa sổ càng lớn thì hiệu ứng càng mạnh, nhưng càng mất nhiều chi tiết thật của ảnh.",
+    ]);
+    $("#t2TT").innerHTML = dsBuoc([
+      `Tạo một ảnh kết quả mới cùng kích thước ${W}×${H}.`,
+      `Lần lượt đặt tâm cửa sổ lên <b>từng</b> điểm (x, y) – tổng cộng ${nghin(W * H)} điểm, quét trái → phải, trên → xuống.`,
+      `Lấy ${N} giá trị điểm ảnh nằm trong các ô màu của cửa sổ.`,
+      `Tìm giá trị ${laMax ? "lớn nhất" : "nhỏ nhất"} trong ${N} giá trị đó (cần ${N - 1} phép so sánh).`,
+      "Ghi giá trị vừa tìm vào ảnh mới tại (x, y) – không ghi đè lên ảnh cũ.",
+      "Ở biên ảnh, phần cửa sổ nằm ngoài ảnh được bỏ qua, chỉ xét các điểm có thật.",
+    ]) + `<p class="goi-y">Làm thẳng như trên cần khoảng ${nghin(W * H * Math.max(0, N - 1))} phép so sánh. Bản web tách cửa sổ thành từng hàng / từng cột và dùng hàng đợi đơn điệu nên mỗi điểm chỉ tốn vài phép so sánh – kéo thanh trượt vẫn mượt.</p>`;
     veKhung(k1, IMG, `Độ sáng trung bình: ${so(m0)}`, vung);
     veKhung(k2, kq, `Độ sáng trung bình: ${so(m1)}`, vung,
       `Sau ${laMax ? "lọc cực đại" : "lọc cực tiểu"} ${kichThuocChu(hinh, k)} (${hinh.toLowerCase()})`, laMax ? MAU.cam : MAU.xanh);
@@ -330,7 +509,8 @@ TABS.t2 = (() => {
   }
   ["#t2K", "#t2Hinh", "#t2Zoom"].forEach((s) => $(s).addEventListener("input", capNhat));
   document.querySelectorAll('input[name="t2Kieu"]').forEach((e) => e.addEventListener("change", capNhat));
-  return { capNhat, veLai: () => veLai([k1, k2]) };
+  [k1, k2].forEach((kh) => chonDiem(kh, (x, y) => { diem = [x, y]; capNhat(); }));
+  return { capNhat, veLai: () => veLai([k1, k2]), datLai: () => { diem = null; } };
 })();
 
 // ============================== TAB 3: KHỬ NHIỄU ==============================
@@ -338,15 +518,62 @@ TABS.t3 = (() => {
   let seed = 1;
   const p = $("#t3P"), k1 = khung(p, "Ảnh gốc", 420), k2 = khung(p, "Ảnh bị nhiễu", 420, MAU.do), k3 = khung(p, "Sau lọc", 420, MAU.xanh);
   p.querySelectorAll(".khung").forEach((e) => (e.style.width = "calc((100% - 28px) / 3)"));
+  $("#t3GT").innerHTML = the("Soi cửa sổ tại một điểm nhiễu", `<p class="goi-y">App tự chọn một điểm nhiễu gần giữa ảnh (khung đỏ). Bấm vào ảnh bị nhiễu hoặc ảnh sau lọc để soi điểm khác.</p><div id="t3Soi"></div>`, "rong")
+    + the("Vì sao bộ lọc này cho kết quả như vậy?", `<div id="t3VS"></div>`) + the("Kích thước cửa sổ ảnh hưởng thế nào?", `<div id="t3KT"></div>`, "xanh");
+  let diem = null, khoa = "";
+  function diemNhieu(goc, nh) {      // điểm nhiễu gần tâm vùng giữa nhất
+    const [y0, h, x0, w] = vungGiua(goc), cy = y0 + h / 2, cx = x0 + w / 2;
+    let tot = Infinity, kq = [cx | 0, cy | 0];
+    for (let y = y0; y < y0 + h; y++) for (let x = x0; x < x0 + w; x++) {
+      const i = y * goc.w + x, v = nh.d[i];
+      if (v !== goc.d[i] && (v === 255 || v === 0)) { const d = (x - cx) ** 2 + (y - cy) ** 2; if (d < tot) { tot = d; kq = [x, y]; } }
+    }
+    return kq;
+  }
+  function viSao(loai, loc, k) {
+    const N = k * k, giua = (N + 1) / 2, muoi = loai !== "Tiêu", tieu = loai !== "Muối", L = [];
+    if (muoi) L.push("Điểm <b>muối</b> có giá trị 255 – lớn nhất có thể.");
+    if (tieu) L.push("Điểm <b>tiêu</b> có giá trị 0 – nhỏ nhất có thể.");
+    L.push(`Cửa sổ ${k}×${k} gồm điểm đang xét và ${N - 1} điểm xung quanh; ở mật độ thấp, hầu hết các điểm này là điểm bình thường.`);
+    if (loc === "min") {
+      if (muoi) L.push(`Lọc cực tiểu lấy giá trị <b>nhỏ nhất</b> nên 255 không bao giờ được chọn (trừ khi cả ${N} điểm đều là muối) → chấm muối <b>bị xóa</b>.`);
+      if (tieu) L.push(`${muoi ? "Ngược lại, 0 luôn là giá trị nhỏ nhất" : "Lọc cực tiểu lấy giá trị <b>nhỏ nhất</b> – mà 0 luôn nhỏ nhất"}: mọi điểm có cửa sổ chạm vào chấm tiêu đều thành 0 → mỗi chấm tiêu <b>nở thành khối ${k}×${k}</b>.`);
+      L.push(`Tác dụng phụ: vùng sáng của ảnh cũng co lại ${(k - 1) >> 1} điểm ảnh, ảnh tối đi một chút.`);
+    } else if (loc === "max") {
+      if (tieu) L.push(`Lọc cực đại lấy giá trị <b>lớn nhất</b> nên 0 không bao giờ được chọn (trừ khi cả ${N} điểm đều là tiêu) → chấm tiêu <b>bị xóa</b>.`);
+      if (muoi) L.push(`${tieu ? "Ngược lại, 255 luôn là giá trị lớn nhất" : "Lọc cực đại lấy giá trị <b>lớn nhất</b> – mà 255 luôn lớn nhất"}: mọi điểm có cửa sổ chạm vào chấm muối đều thành 255 → mỗi chấm muối <b>nở thành khối ${k}×${k}</b>.`);
+      L.push(`Tác dụng phụ: vùng sáng của ảnh cũng nở ra ${(k - 1) >> 1} điểm ảnh, ảnh sáng lên một chút.`);
+    } else {
+      L.push(`Lọc trung vị sắp xếp ${N} giá trị rồi lấy phần tử <b>ở giữa</b> (thứ ${giua}). Giá trị nhiễu 0 hay 255 luôn nằm ở hai đầu dãy nên không được chọn, miễn là số điểm nhiễu trong cửa sổ ít hơn một nửa (dưới ${giua} điểm).`);
+      L.push("Tác dụng phụ: các chi tiết rất nhỏ (nhỏ hơn nửa cửa sổ) bị mờ đi.");
+    }
+    return dsBuoc(L);
+  }
   function capNhat() {
     const loai = radio("t3Loai"), md = +$("#t3M").value, loc = radio("t3Loc"), k = +radio("t3K");
     $("#t3MV").textContent = md;
     const nh = themNhieu(IMG, loai, md, seed);
+    if (khoa !== loai + md + seed) { diem = null; khoa = loai + md + seed; }    // nhiễu mới thì chọn lại điểm nhiễu
     let kq, ten, mau;
     if (loc === "min") { kq = locCucTieu(nh, "Vuông", k); ten = "lọc cực tiểu"; mau = MAU.xanh; }
     else if (loc === "max") { kq = locCucDai(nh, "Vuông", k); ten = "lọc cực đại"; mau = MAU.cam; }
     else { kq = trungVi(nh, k); ten = "lọc trung vị"; mau = MAU.xam; }
     const vung = $("#t3Zoom").checked ? vungGiua(IMG) : null;
+    const r = (k - 1) >> 1, d0 = diem || diemNhieu(IMG, nh), x = kep(d0[0], r, IMG.w - 1 - r), y = kep(d0[1], r, IMG.h - 1 - r), i = y * IMG.w + x;
+    k2.diem = k3.diem = { x, y, r };
+    const lech = Math.abs(kq.d[i] - IMG.d[i]);
+    soiCuaSo($("#t3Soi"), nh, x, y, matNa("Vuông", k), loc,
+      `<br>So sánh: giá trị gốc (trước khi bị nhiễu) là <b>${IMG.d[i]}</b>, sau nhiễu là <b>${nh.d[i]}</b>, sau lọc là <b>${kq.d[i]}</b> → `
+      + (lech <= 25 ? `chỉ lệch ${lech} so với gốc ✔.` : `lệch ${lech} so với gốc ✘.`));
+    $("#t3VS").innerHTML = viSao(loai, loc, k);
+    const N = k * k, tb = (N * md) / 100;
+    $("#t3KT").innerHTML = `<p>Cửa sổ ${k}×${k} có <b>N = ${N}</b> điểm. Với mật độ nhiễu ${md} %, trung bình mỗi cửa sổ chứa khoảng <b>${so(tb, 2)}</b> điểm nhiễu.</p>` + dsCham([
+      "Cửa sổ <b>nhỏ</b> (3×3): giữ chi tiết tốt nhất và đã đủ cho nhiễu xung, vì mỗi chấm nhiễu chỉ rộng 1 điểm ảnh.",
+      "Cửa sổ <b>lớn</b> (5×5, 7×7): xóa được cả những cụm nhiễu dính nhau, nhưng làm mất chi tiết nhỏ (lông mày, nếp nhăn); với lọc cực đại / cực tiểu thì ảnh còn sáng lên / tối đi rõ hơn.",
+      loc === "med" ? `Lọc trung vị chỉ thất bại khi cửa sổ có từ ${(N + 1) / 2} điểm nhiễu trở lên – cửa sổ càng lớn thì càng khó xảy ra.`
+        : loc === "min" ? `Lọc cực tiểu chỉ để sót chấm <b>muối</b> khi cả ${N} điểm trong cửa sổ đều là muối – gần như không bao giờ xảy ra; còn mỗi chấm <b>tiêu</b> thì luôn nở thành ${N} điểm.`
+          : `Lọc cực đại chỉ để sót chấm <b>tiêu</b> khi cả ${N} điểm trong cửa sổ đều là tiêu – gần như không bao giờ xảy ra; còn mỗi chấm <b>muối</b> thì luôn nở thành ${N} điểm.`,
+    ]);
     const [s0, t0] = batThuong(IMG, nh), [s1, t1] = batThuong(IMG, kq);
     veKhung(k1, IMG, `Độ sáng trung bình: ${so(trungBinh(IMG))}`, vung);
     veKhung(k2, nh, `${chuPsnr(psnr(IMG, nh))}\nĐiểm sáng bất thường ${so(s0, 2)} % · tối bất thường ${so(t0, 2)} %`, vung, `Ảnh bị nhiễu ${loai.toLowerCase()} ${md} %`);
@@ -361,11 +588,67 @@ TABS.t3 = (() => {
   document.querySelectorAll('input[name="t3Loai"], input[name="t3Loc"], input[name="t3K"]').forEach((e) => e.addEventListener("change", capNhat));
   ["#t3M", "#t3Zoom"].forEach((s) => $(s).addEventListener("input", capNhat));
   $("#t3Moi").onclick = () => { seed++; capNhat(); };
-  return { capNhat, veLai: () => veLai([k1, k2, k3]) };
+  [k2, k3].forEach((kh) => chonDiem(kh, (x, y) => { diem = [x, y]; capNhat(); }));
+  return { capNhat, veLai: () => veLai([k1, k2, k3]), datLai: () => { diem = null; khoa = ""; } };
 })();
+
+// ============================== VÍ DỤ 1 CHIỀU (tab 4, 5) ==============================
+const loc1D = (v, r, laMax) => v.map((_, i) => {
+  let m = laMax ? -1 : 256;
+  for (let j = Math.max(0, i - r); j <= Math.min(v.length - 1, i + r); j++) m = laMax ? Math.max(m, v[j]) : Math.min(m, v[j]);
+  return m;
+});
+const trungVi1D = (v, r) => v.map((_, i) => {
+  const w = []; for (let j = i - r; j <= i + r; j++) w.push(v[kep(j, 0, v.length - 1)]);
+  return w.sort((a, b) => a - b)[w.length >> 1];
+});
+// hang: [{ ten, v, so (hàng để so ô bị đổi), nx (giải thích), xam (tô nền theo mức xám), lop, hienThi, hien }]
+function bang1D(hang, nhieu = true) {
+  const n = hang[0].v.length;
+  let h = `<table class="bang bang1d"><tr><th class="trai">Hàng điểm ảnh</th>${Array.from({ length: n }, (_, i) => `<th>${i + 1}</th>`).join("")}<th class="trai">Giải thích</th></tr>`;
+  for (const r of hang) {
+    h += `<tr class="${r.hien ? "hien" : ""}"><td class="ten">${r.ten}</td>` + r.v.map((v, i) => {
+      const cls = [nhieu && v === 255 ? "muoi" : nhieu && v === 0 ? "tieu" : "", r.so && r.so[i] !== v ? "doi" : "", r.lop ? r.lop(v, i) : ""].join(" ");
+      const st = r.xam ? ` style="background:rgb(${v},${v},${v});color:${v > 140 ? "#1F2D37" : "#fff"}"` : "";
+      return `<td class="${cls}"${st}>${r.hienThi ? r.hienThi(v) : v}</td>`;
+    }).join("") + `<td class="trai nx">${r.nx || ""}</td></tr>`;
+  }
+  return h + "</table>";
+}
 
 // ============================== TAB 4: MỞ – ĐÓNG TỪNG BƯỚC ==============================
 TABS.t4 = (() => {
+  $("#t4GT").innerHTML = the("Ví dụ tính tay trên một hàng điểm ảnh",
+    `<p class="goi-y">Cùng 4 bước như các ảnh ở trên nhưng làm trên 11 điểm, cửa sổ 1 chiều rộng 3 (điểm đang xét và 1 điểm mỗi bên). Ô viền cam là ô vừa bị thay đổi ở bước đó. Hàng mới hiện ra mỗi lần bấm “Bước tiếp”.</p><div id="t4VD" class="cuon"></div>`, "rong")
+    + the("Các bước và ý nghĩa", `<div id="t4B"></div>`) + the("Cửa sổ 3×3 trong tab này", `<div id="t4CS"></div>`, "xanh");
+  const F = [100, 100, 100, 255, 100, 100, 100, 0, 100, 100, 100];
+  const H1 = loc1D(F, 1, false), H2 = loc1D(H1, 1, true), H3 = loc1D(H2, 1, true), H4 = loc1D(H3, 1, false), HTV = trungVi1D(F, 1);
+  const VI_DU = [
+    { ten: "Hàng gốc f", v: F, nx: "Một chấm muối (255) ở vị trí 4, một chấm tiêu (0) ở vị trí 8; còn lại đều là 100." },
+    { ten: "B1 · min", v: H1, so: F, nx: "255 bị xóa (min bỏ qua giá trị lớn), nhưng 0 lan ra 3 ô (vị trí 7–9)." },
+    { ten: "B2 · max = mở", v: H2, so: H1, nx: "Khối 0 co lại còn 1 ô. Min rồi max = phép mở: hết muối, còn tiêu." },
+    { ten: "B3 · max", v: H3, so: H2, nx: "Chấm 0 cuối cùng bị xóa (max bỏ qua giá trị nhỏ)." },
+    { ten: "B4 · min = mở rồi đóng", v: H4, so: H3, nx: "Không còn ô nào phải đổi; với ảnh thật, bước này kéo độ sáng về như cũ. Sạch cả hai loại nhiễu." },
+    { ten: "Trung vị 3", v: HTV, so: F, nx: "Mỗi cửa sổ có ít nhất 2 giá trị 100 nên phần tử giữa luôn là 100 → sạch ngay sau 1 bước." },
+  ];
+  const Y_NGHIA = [
+    "Lọc cực tiểu 3×3: xóa chấm muối (sáng), nhưng chấm tiêu (tối) lan rộng ra, ảnh tối đi.",
+    "Lọc cực đại 3×3: vật trở về gần kích thước cũ. Bước 1 + 2 = <b>phép mở</b> – xóa các chi tiết sáng nhỏ hơn cửa sổ.",
+    "Lọc cực đại 3×3: xóa các chấm tiêu còn lại, ảnh sáng lên.",
+    "Lọc cực tiểu 3×3: độ sáng trở về như cũ. Bước 3 + 4 = <b>phép đóng</b> – lấp các chi tiết tối nhỏ hơn cửa sổ.",
+    "So sánh: lọc trung vị 3×3 làm sạch trong đúng một bước.",
+  ];
+  $("#t4CS").innerHTML = `<p>Cả 4 bước đều dùng cửa sổ <b>vuông 3×3</b> (9 điểm).</p>` + dsCham([
+    "Nhiễu muối tiêu là các điểm lẻ, rộng 1 điểm ảnh – nhỏ hơn cửa sổ 3×3 nên bị xóa.",
+    "Phép mở và phép đóng chỉ xóa những gì <b>nhỏ hơn</b> cửa sổ; vật lớn hơn cửa sổ giữ nguyên kích thước – khác với chỉ lọc cực tiểu làm mọi vật co lại.",
+    "Cửa sổ 5×5 vẫn xóa được nhiễu nhưng xóa luôn chi tiết thật nhỏ hơn 5 điểm ảnh (viền kính, nếp nhăn), nên ở đây chọn 3×3.",
+    "Trung vị tốt hơn với nhiễu muối tiêu, nhưng max / min làm được những việc trung vị không làm được: tách biên (tab 5), tách nền (tab 6).",
+  ]);
+  function veGiaiThich() {
+    $("#t4VD").innerHTML = bang1D(VI_DU.slice(0, buoc + 1).map((h, i) => ({ ...h, hien: i === buoc })));
+    $("#t4B").innerHTML = dsBuoc(Y_NGHIA, buoc - 1)
+      + `<p class="goi-y">Vì sao phải ghép 4 bước? Mỗi phép đơn lẻ chỉ xóa được một loại nhiễu và làm loại còn lại lan rộng (xem tab 3); phép sau sửa lại tác dụng phụ của phép trước. PSNR (dB) đo độ giống ảnh gốc: càng cao càng giống.</p>`;
+  }
   const BUOC = [
     ["Bước 1 · Lọc cực tiểu", MAU.xanh, "Lọc cực tiểu xóa các chấm trắng (nhiễu muối), nhưng chấm đen (nhiễu tiêu) lan rộng ra và ảnh tối đi."],
     ["Bước 2 · Lọc cực đại = PHÉP MỞ", MAU.cam, "Lọc cực đại trả vật thể về gần kích thước cũ. Min rồi max chính là phép mở: hết chấm trắng, còn chấm đen."],
@@ -391,6 +674,7 @@ TABS.t4 = (() => {
       } else veKhung(k, null, "Bấm “Bước tiếp” để xem");
     });
     ghiChu("#t4Ghi", buoc === 0 ? "Ảnh có cả chấm trắng (muối) và chấm đen (tiêu). Mỗi bước dùng cửa sổ 3×3. PSNR càng cao thì ảnh càng giống ảnh gốc." : BUOC[buoc - 1][2]);
+    veGiaiThich();
   }
   $("#t4M").addEventListener("input", tinh);
   $("#t4Zoom").addEventListener("input", ve);
@@ -407,11 +691,51 @@ TABS.t5 = (() => {
   const p = $("#t5P");
   const ks = [khung(p, "Ảnh gốc", 260), khung(p, "Lọc cực đại", 260, MAU.cam), khung(p, "Lọc cực tiểu", 260, MAU.xanh),
     khung(p, "Gradient = max − min", 260), khung(p, "Điểm biên (vượt ngưỡng)", 260)];
+  $("#t5GT").innerHTML = the("Ví dụ tính tay trên một hàng điểm ảnh",
+    `<p class="goi-y">Hàng 20 điểm có 3 chỗ đổi độ sáng: 40 → 190 (chênh 150), 190 → 120 (chênh 70) và 120 → 140 (chênh 20). Cửa sổ 1 chiều cùng độ rộng k với thanh trượt; màu nền mỗi ô là mức xám của nó.</p><div id="t5VD" class="cuon"></div><div id="t5KL"></div>`, "rong")
+    + the("Các bước", `<div id="t5B"></div>`) + the("Cửa sổ ảnh hưởng thế nào?", `<div id="t5CS"></div>`, "xanh");
+  const F = [40, 40, 40, 40, 40, 190, 190, 190, 190, 190, 190, 120, 120, 120, 120, 120, 140, 140, 140, 140];
+  const BIEN = [[5, 150, "40 → 190"], [11, 70, "190 → 120"], [16, 20, "120 → 140"]];      // [vị trí bắt đầu vùng mới, độ chênh, nhãn]
+  const BIEN_THEO_HINH = {
+    "Vuông": "bắt biên theo mọi hướng.",
+    "Chữ thập": "bắt tốt biên ngang và dọc, biên chéo yếu hơn một chút.",
+    "Đĩa tròn": "bắt biên đều mọi hướng, viền ở các góc mịn và tròn hơn.",
+    "Đoạn ngang": "chỉ so sánh theo chiều ngang → chỉ bắt được biên <b>đứng</b> (độ sáng đổi khi đi ngang); biên nằm ngang gần như biến mất.",
+    "Đoạn dọc": "chỉ so sánh theo chiều dọc → chỉ bắt được biên <b>nằm ngang</b>; biên đứng gần như biến mất.",
+  };
+  function veGiaiThich(k, hinh, ng) {
+    const r = (k - 1) >> 1, mx = loc1D(F, r, true), mn = loc1D(F, r, false), g = mx.map((v, i) => v - mn[i]);
+    $("#t5VD").innerHTML = bang1D([
+      { ten: "Hàng gốc f", v: F, xam: true, nx: "" },
+      { ten: `max (k = ${k})`, v: mx, so: F, xam: true, nx: "Vùng sáng lấn sang vùng tối" },
+      { ten: `min (k = ${k})`, v: mn, so: F, xam: true, nx: "Vùng tối lấn sang vùng sáng" },
+      { ten: "max − min", v: g, xam: true, nx: "≈ 0 ở vùng phẳng, lớn ở biên" },
+      { ten: `> ngưỡng ${ng}?`, v: g, lop: (v) => (v > ng ? "bien" : "khong"), hienThi: (v) => (v > ng ? "✓" : "·"), nx: "✓ = điểm biên" },
+    ], false);
+    const coBien = ([b]) => g[b] > ng || g[b - 1] > ng;                     // đọc đúng theo bảng ở trên
+    const giu = BIEN.filter(coBien).map((b) => b[2]), bo = BIEN.filter((b) => !coBien(b)).map((b) => b[2]);
+    $("#t5KL").innerHTML = `<p class="nhan-xet"><b>Nhận xét:</b> mỗi chỗ đổi độ sáng tạo ra một vệt max − min dày khoảng k − 1 = ${k - 1} điểm`
+      + `${k >= 7 ? " (cửa sổ lớn nên các vệt gần nhau bắt đầu dính vào nhau)" : ""}. Với ngưỡng ${ng}: `
+      + `${giu.length ? `giữ lại biên ${giu.join(", ")}` : "không giữ được biên nào"}${bo.length ? `; biên yếu ${bo.join(", ")} bị loại` : ""}.</p>`;
+    $("#t5B").innerHTML = dsBuoc([
+      `Lọc cực đại ${kichThuocChu(hinh, k)}: mỗi điểm lấy giá trị sáng nhất xung quanh → vùng sáng lấn sang vùng tối ${r} điểm ảnh.`,
+      `Lọc cực tiểu ${kichThuocChu(hinh, k)}: mỗi điểm lấy giá trị tối nhất → vùng tối lấn sang vùng sáng ${r} điểm ảnh.`,
+      "Trừ hai ảnh: gradient = max − min. Ở vùng phẳng mọi điểm trong cửa sổ gần bằng nhau → max ≈ min → gần 0 (đen). Ở biên, cửa sổ chứa cả phần sáng lẫn phần tối → hiệu lớn → sáng.",
+      `So với ngưỡng: điểm có max − min > ${ng} là điểm biên (trắng), còn lại là nền (đen).`,
+    ]) + `<div class="cong-thuc">g(x, y) = max<sub>W</sub> f − min<sub>W</sub> f ≥ 0</div>`;
+    $("#t5CS").innerHTML = dsCham([
+      `Độ dày viền ≈ k − 1 = ${k - 1} điểm ảnh (r = ${r} điểm mỗi bên biên). Cửa sổ càng lớn viền càng dày, nhưng các biên gần nhau dễ dính vào nhau.`,
+      `Hình dạng <b>${hinh.toLowerCase()}</b>: ${BIEN_THEO_HINH[hinh]}`,
+      "Ngưỡng cao → chỉ giữ biên mạnh (đường viền chính); ngưỡng thấp → giữ cả biên yếu (vân, nếp nhăn, nhiễu).",
+      "Ưu điểm: chỉ cần phép so sánh, không cần nhân chập; viền luôn khép kín quanh vật.",
+    ]);
+  }
   function capNhat() {
     const k = +$("#t5K").value, hinh = $("#t5Hinh").value, ng = +$("#t5N").value;
     $("#t5KV").textContent = k; $("#t5NV").textContent = ng;
     const mx = locCucDai(IMG, hinh, k), mn = locCucTieu(IMG, hinh, k), gr = tru(mx, mn), np = nhiPhan(gr, ng);
     const tl = tiLeTrang(np), vung = $("#t5Zoom").checked ? vungGiua(IMG) : null;
+    veGiaiThich(k, hinh, ng);
     veKhung(ks[0], IMG, "", vung); veKhung(ks[1], mx, "", vung); veKhung(ks[2], mn, "", vung);
     veKhung(ks[3], gr, `Giá trị trung bình ${so(trungBinh(gr))}`, vung);
     veKhung(ks[4], np, `${so(tl, 2)} % số điểm là điểm biên`, vung);
@@ -426,19 +750,118 @@ TABS.t6 = (() => {
   const p = $("#t6P");
   const ks = [khung(p, "Ảnh chữ – nền sáng không đều", 175), khung(p, "Nhị phân trực tiếp (ngưỡng Otsu)", 175, MAU.do),
     khung(p, "Top-hat: ảnh gốc − phép mở", 175, MAU.xanh), khung(p, "Top-hat rồi nhị phân (ngưỡng Otsu)", 175, MAU.xanh)];
+  const BD = { goc: "#A9B4BA", nen: "#2A7F93", th: "#C2571A", luoi: "#E6EBED", chu: "#5B6B73", nguong1: "#7D8A91" };
+  $("#t6GT").innerHTML = the("Lát cắt một hàng của ảnh chữ",
+    `<p class="goi-y">Biểu đồ vẽ độ sáng dọc theo hàng có vạch đỏ đứt trên ảnh đầu tiên. Rê chuột lên biểu đồ để xem giá trị từng điểm.</p>
+     <div class="chu-giai">
+       <span><i style="background:${BD.goc}"></i>Ảnh gốc</span><span><i style="background:${BD.nen}"></i>Nền ước lượng (phép mở)</span>
+       <span><i style="background:${BD.th}"></i>Top-hat = gốc − nền</span>
+       <span><i class="manh" style="background:${BD.nguong1}"></i>Ngưỡng Otsu trên ảnh gốc</span><span><i class="manh" style="background:${BD.th}"></i>Ngưỡng Otsu trên top-hat</span>
+     </div>
+     <div class="bieu-do-boc"><canvas class="bieu-do" id="t6BD"></canvas><div class="tip" id="t6Tip"></div></div>`, "rong")
+    + the("Các bước", `<div id="t6B"></div>`) + the("Chọn kích thước cửa sổ", `<div id="t6CS"></div>`, "xanh");
+
+  // Mặt nạ nét chữ thật (ảnh chữ không có nền lệch) – dùng để đo nét chữ và chấm điểm kết quả
+  let MAT = null, NET = 10, HANG = 70;
+  function chuanBi() {
+    if (MAT) return;
+    MAT = nhiPhan(anhChu(0), 140);
+    const dem = new Map(); let nhieuNhat = -1;
+    for (let y = 0; y < 125; y++) {                       // dòng chữ thứ nhất
+      let soDoan = 0, chay = 0;
+      for (let x = 0; x <= MAT.w; x++) {
+        const on = x < MAT.w && MAT.d[y * MAT.w + x] > 0;
+        if (on) chay++;
+        else if (chay) { dem.set(chay, (dem.get(chay) || 0) + 1); soDoan++; chay = 0; }
+      }
+      if (soDoan > nhieuNhat) { nhieuNhat = soDoan; HANG = y; }   // hàng cắt qua nhiều nét đứng nhất
+    }
+    NET = [...dem.entries()].sort((p, q) => q[1] - p[1])[0][0];  // độ dài đoạn hay gặp nhất = bề dày nét
+  }
+  function cham(b) {                  // [giữ được bao nhiêu % nét chữ, nhận nhầm bao nhiêu % nền]
+    let chu = 0, giu = 0, nen = 0, nham = 0;
+    for (let i = 0; i < b.d.length; i++) { if (MAT.d[i]) { chu++; if (b.d[i]) giu++; } else { nen++; if (b.d[i]) nham++; } }
+    return [giu / chu * 100, nham / nen * 100];
+  }
+
+  let duLieu = null;
+  function veBieuDo(xHover = null) {
+    const cv = $("#t6BD"), tip = $("#t6Tip");
+    if (!duLieu || !cv.clientWidth) return;
+    const { goc, nen, th, T1, T2 } = duLieu, n = goc.length;
+    const dpr = window.devicePixelRatio || 1, W = cv.clientWidth, H = 250, L = 34, R = 12, T = 10, B = 24;
+    cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); cv.style.height = H + "px";
+    const c = cv.getContext("2d"); c.setTransform(dpr, 0, 0, dpr, 0, 0); c.clearRect(0, 0, W, H);
+    const X = (i) => L + (i / (n - 1)) * (W - L - R), Y = (v) => T + (1 - v / 255) * (H - T - B);
+    c.font = "11px Segoe UI, Arial"; c.fillStyle = BD.chu; c.lineWidth = 1;
+    c.textAlign = "right"; c.textBaseline = "middle";
+    for (const v of [0, 50, 100, 150, 200, 250]) {
+      c.strokeStyle = BD.luoi; c.beginPath(); c.moveTo(L, Y(v) + 0.5); c.lineTo(W - R, Y(v) + 0.5); c.stroke();
+      c.fillText(v, L - 6, Y(v));
+    }
+    c.textAlign = "center"; c.textBaseline = "top";
+    for (let x = 0; x < n; x += 100) c.fillText(x, X(x), H - B + 6);
+    // ảnh gốc: vùng tô nhạt + đường
+    c.beginPath(); c.moveTo(X(0), Y(0)); goc.forEach((v, i) => c.lineTo(X(i), Y(v))); c.lineTo(X(n - 1), Y(0)); c.closePath();
+    c.fillStyle = "rgba(169,180,186,0.16)"; c.fill();
+    c.lineJoin = c.lineCap = "round";
+    for (const [arr, mau] of [[goc, BD.goc], [nen, BD.nen], [th, BD.th]]) {
+      c.strokeStyle = mau; c.lineWidth = 2; c.beginPath(); arr.forEach((v, i) => (i ? c.lineTo(X(i), Y(v)) : c.moveTo(X(i), Y(v)))); c.stroke();
+    }
+    // hai ngưỡng Otsu
+    c.textAlign = "right"; c.textBaseline = "bottom"; c.lineWidth = 1;
+    for (const [v, mau, nhan] of [[T1, BD.nguong1, `ngưỡng Otsu ảnh gốc = ${T1}`], [T2, BD.th, `ngưỡng Otsu top-hat = ${T2}`]]) {
+      c.strokeStyle = mau; c.setLineDash([5, 4]); c.beginPath(); c.moveTo(L, Y(v) + 0.5); c.lineTo(W - R, Y(v) + 0.5); c.stroke(); c.setLineDash([]);
+      c.fillStyle = BD.chu; c.fillText(nhan, W - R - 4, Y(v) - 2);
+    }
+    if (xHover === null) { tip.style.display = "none"; return; }
+    const i = kep(Math.round(((xHover - L) / (W - L - R)) * (n - 1)), 0, n - 1), px = X(i);
+    c.strokeStyle = "#1F2D37"; c.lineWidth = 1; c.beginPath(); c.moveTo(px + 0.5, T); c.lineTo(px + 0.5, H - B); c.stroke();
+    for (const [arr, mau] of [[goc, BD.goc], [nen, BD.nen], [th, BD.th]]) {
+      c.beginPath(); c.arc(px, Y(arr[i]), 4, 0, 2 * Math.PI); c.fillStyle = mau; c.fill(); c.lineWidth = 2; c.strokeStyle = "#fff"; c.stroke();
+    }
+    tip.innerHTML = `<b>x = ${i}</b><br><i style="background:${BD.goc}"></i>Ảnh gốc: ${goc[i]}<br><i style="background:${BD.nen}"></i>Nền ước lượng: ${nen[i]}<br><i style="background:${BD.th}"></i>Top-hat: ${th[i]}`;
+    tip.style.display = "block";
+    tip.style.left = (px + 14 + 170 > W ? px - 14 - tip.offsetWidth : px + 14) + "px";
+    tip.style.top = "14px";
+  }
+  $("#t6BD").addEventListener("mousemove", (e) => veBieuDo(e.clientX - $("#t6BD").getBoundingClientRect().left));
+  $("#t6BD").addEventListener("mouseleave", () => veBieuDo(null));
+
   function capNhat() {
+    chuanBi();
     const nen = +$("#t6N").value, k = +$("#t6K").value;
     $("#t6NV").textContent = nen; $("#t6KV").textContent = k;
     const a = anhChu(nen);
     const mo = locCucDai(locCucTieu(a, "Đĩa tròn", k), "Đĩa tròn", k);      // phép mở: min rồi max
-    const th = tru(a, mo), b1 = nhiPhan(a, nguongOtsu(a)), b2 = nhiPhan(th, nguongOtsu(th));
-    const p1 = tiLeTrang(b1), p2 = tiLeTrang(b2);
+    const T1 = nguongOtsu(a), th = tru(a, mo), T2 = nguongOtsu(th), b1 = nhiPhan(a, T1), b2 = nhiPhan(th, T2);
+    const p1 = tiLeTrang(b1), p2 = tiLeTrang(b2), [g1, n1] = cham(b1), [g2, n2] = cham(b2), nho = g2 < 90;
+    ks[0].hang = HANG;
     veKhung(ks[0], a); veKhung(ks[1], b1, `${so(p1, 2)} % điểm trắng`); veKhung(ks[2], th); veKhung(ks[3], b2, `${so(p2, 2)} % điểm trắng`);
-    ghiChu("#t6Ghi", k < 15 ? "Cửa sổ quá nhỏ (nhỏ hơn nét chữ): phép mở xóa luôn cả chữ khỏi “nền”, nên top-hat làm mất một phần nét chữ. Hãy tăng kích thước lên."
-      : `Nhị phân trực tiếp: ${so(p1, 2)} % điểm trắng (dính cả mảng nền sáng). Sau top-hat: ${so(p2, 2)} % – chỉ còn đúng nét chữ.`);
+    ghiChu("#t6Ghi", nho ? "Cửa sổ quá nhỏ (chưa lớn hơn hẳn nét chữ): phép mở không xóa được chữ, nên “nền ước lượng” còn dính cả chữ; lấy ảnh gốc trừ đi thì nét chữ bị trừ mất theo. Hãy tăng kích thước lên."
+      : `Nhị phân trực tiếp: ${so(p1, 2)} % điểm trắng${n1 > 1 ? " (dính cả mảng nền sáng)" : ""}. Sau top-hat: ${so(p2, 2)} % – chỉ còn đúng nét chữ.`
+        + (n1 > 1 ? "" : "\nNền gần như đều nên nhị phân trực tiếp cũng đã ổn – hãy tăng độ không đều của nền để thấy khác biệt."), nho);
+    const hang = (img) => Array.from(img.d.subarray(HANG * img.w, (HANG + 1) * img.w));
+    duLieu = { goc: hang(a), nen: hang(mo), th: hang(th), T1, T2 };
+    veBieuDo();
+    $("#t6B").innerHTML = dsBuoc([
+      `Phép mở = lọc cực tiểu rồi lọc cực đại, dùng cửa sổ <b>đĩa tròn ${k}×${k}</b>.`,
+      `Lọc cực tiểu: nét chữ sáng (dày khoảng ${NET} điểm ảnh) ${!nho ? "mảnh hơn cửa sổ nên bị phần nền tối xung quanh “nuốt” mất – chỉ còn lại nền" : "chưa mảnh hơn hẳn cửa sổ nên <b>không</b> bị xóa hết"}.`,
+      "Lọc cực đại: phần còn lại nở về gần như cũ → ảnh <b>nền ước lượng</b> (đường xanh trên biểu đồ).",
+      "Top-hat = ảnh gốc − nền ước lượng: nền (kể cả mảng sáng) về gần 0, chỉ còn nét chữ (đường cam).",
+      `Otsu tự chọn ngưỡng tách chữ / nền. Trên ảnh gốc ngưỡng là ${T1}: ${n1 > 1 ? "phần nền sáng vượt ngưỡng nên bị dính vào chữ" : "nền đều nên ngưỡng này vẫn tách được"}. Trên ảnh top-hat ngưỡng là ${T2}: ${nho ? "nhưng chữ đã bị trừ mất nhiều" : "tách sạch"}.`,
+    ]);
+    $("#t6CS").innerHTML = `<p>Nét chữ trong ảnh dày khoảng <b>${NET} điểm ảnh</b>; cửa sổ đang dùng là <b>${k}×${k}</b> → ${nho ? "<b>chưa đủ lớn</b> ✘ (cần lớn hơn hẳn nét chữ – hãy kéo thanh trượt lên)" : "lớn hơn nét chữ ✔"}.</p>`
+      + `<table class="bang"><tr><th></th><th>Giữ được nét chữ</th><th>Nhận nhầm nền thành chữ</th></tr>`
+      + `<tr><td class="ten">Nhị phân trực tiếp</td><td>${so(g1, 1)} %</td><td>${so(n1, 1)} %</td></tr>`
+      + `<tr><td class="ten">Top-hat rồi nhị phân</td><td>${so(g2, 1)} %</td><td>${so(n2, 1)} %</td></tr></table>` + dsCham([
+      "Quy tắc chọn: cửa sổ phải <b>lớn hơn nét chữ</b> để phép mở xóa được chữ, nhưng nhỏ hơn nhiều so với mảng sáng của nền (nền thay đổi chậm nên phép mở vẫn ôm theo được).",
+      "Dùng đĩa tròn để nền ước lượng tròn trịa, không bị góc cạnh như cửa sổ vuông.",
+      "Cửa sổ quá lớn thì tính lâu hơn và nền ước lượng bám kém hơn ở chỗ nền đổi nhanh.",
+    ]);
   }
   ["#t6N", "#t6K"].forEach((s) => $(s).addEventListener("input", capNhat));
-  return { capNhat, veLai: () => veLai(ks) };
+  return { capNhat, veLai: () => { veLai(ks); veBieuDo(); } };
 })();
 
 // ============================== ĐIỀU KHIỂN CHUNG ==============================
@@ -461,6 +884,7 @@ document.querySelectorAll("#tabs button").forEach((b) => (b.onclick = () => moTa
 
 function datAnh(a, ten) {
   IMG = a; TEN_ANH = ten; daVe.clear();
+  Object.values(TABS).forEach((t) => t.datLai && t.datLai());     // ảnh mới: bỏ điểm soi cũ
   $("#status").textContent = `Ảnh đang dùng: ${ten} (${a.w}×${a.h} điểm ảnh, ảnh xám) · Toàn bộ xử lý chạy ngay trên trình duyệt của bạn, không gửi ảnh đi đâu cả.`;
   TABS[tabHienTai].capNhat(); daVe.add(tabHienTai);
 }
